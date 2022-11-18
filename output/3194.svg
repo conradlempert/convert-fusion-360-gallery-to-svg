@@ -1,0 +1,14 @@
+<svg version='1.1' x='0px' y='0px' viewBox='-10 -10 20 20' xmlns='http://www.w3.org/2000/svg'><style>path{stroke:black; stroke-width: 0.1; fill: transparent}</style><path d='M2,15,L3,15,L2,8.5,L3,8.5,L3,8.5,Z'/>
+<path d='M2,8.5,L3,8.5,L2,8,L2,8,L3,8,Z'/>
+<path d='M-2,0,L-2,1,L-3,1,L-3,1,L-3,0,Z'/>
+<path d='M-2,8,L-3,8,L-2,8.5,L-3,8.5,L-3,8.5,Z'/>
+<path d='M-2,8.5,L-2,15,L-2,8.5,L-2,8,L0,8,L2,8,L2,8.5,L2,15,Z'/>
+<path d='M3,8,L2,8,L2,7.5,L2,7.5,L3,7.5,Z'/>
+<path d='M3,7.5,L2,7.5,L2,1,L3,1,L3,1,Z'/>
+<path d='M2,1,L3,1,L-2,1,L-2,1,L-2,0,L3,0,Z'/>
+<path d='M-2,1,L-3,1,L-2,7.5,L-2,7.5,L-3,7.5,Z'/>
+<path d='M-3,7.5,L-2,7.5,L-2,8,L-3,8,L-3,8,Z'/>
+<path d='M-2,7.5,L-2,8,L-2,7.5,L-2,1,L2,1,L2,7.5,L0,8,L-2,8,Z'/>
+<path d='M-2,15,L-2,16,L2,15,L3,15,L3,15,L3,16,Z'/>
+<path d='M-3,8.5,L-3,15,L-3,8.5,L-2,15,L-3,15,Z'/>
+<path d='M-3,16,L-2,16,L-3,16,L-3,15,L-2,16,Z'/></svg>
