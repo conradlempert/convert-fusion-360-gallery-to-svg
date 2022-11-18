@@ -1,20 +1,30 @@
 import fs from "fs/promises";
 import path from "path";
 import {flatten} from "lodash";
+import {Vector3} from "three";
+
+const filter = "";
 
 type ReconstructionJson = {
+    metadata: {
+        parent_project: string,
+        component_name: string,
+        component_index: number,
+    },
     entities: {
+        [name: string]: Sketch
+    }
+}
+
+type Sketch = {
+    type: "Sketch" | "Extrude",
+    profiles: {
         [name: string]: {
-            type: "Sketch" | "Extrude",
-            profiles: {
-                [name: string]: {
-                    loops: [
-                        {
-                            profile_curves: Curve[],
-                        }   
-                    ]
-                }
-            }
+            loops: [
+                {
+                    profile_curves: Curve[],
+                }   
+            ]
         }
     }
 }
@@ -55,6 +65,11 @@ type Arc3D = {
     radius: number,
     start_angle: number,
     end_angle: number,
+    reference_vector: {
+        x: number,
+        y: number,
+        z: number,
+    }
 }
 
 type Circle3D = {
@@ -95,7 +110,7 @@ export interface ArcCommandEndPointRep {
 }
 
 const readDirectory = async (dir: string) => {
-  const files = await (await fs.readdir(dir)).filter(path => path.includes(".json"));
+  const files = await (await fs.readdir(dir)).filter(path => path.includes(".json") && path.includes(filter));
 
   const values = files.flatMap(async (file) => {
     const filePath = path.join(dir, file);
@@ -125,28 +140,79 @@ async function run() {
     const jsons = contents.map(str => JSON.parse(str)) as ReconstructionJson[];
     //console.log(jsons[0]);
     console.log("LOADING SKETCHES");
-    const sketches = flatten(jsons.map(json => Object.values(json.entities))).filter(e => e.type === "Sketch" && e.profiles);
-    const svgs: string[] = [];
-    for(const [i, sketch] of sketches.entries()) {
-        console.log("processing " + i + "/" + sketches.length);
+    const sketches = new Map<string, Sketch>();
+    for(const json of jsons) {
+        const jsonSketches = Object.values(json.entities).filter(e => e.type === "Sketch" && e.profiles);
+        for(const [i, sketch] of jsonSketches.entries()) {
+            sketches.set(json.metadata.parent_project + "_" + json.metadata.component_index + "_" + i, sketch);
+        }
+    }
+    const svgs = new Map<string, string>();
+    let i = 0;
+    for(const [sketch_name, sketch] of sketches.entries()) {
+        i++;
+        console.log("processing " + i + "/" + sketches.size);
         const profiles = Object.values(sketch.profiles);
         const loops = flatten(profiles.map(p => p.loops));
         const loop_curves = loops.map(loop => loop.profile_curves);
         if(loop_curves.some(curves => curves.some(c => !["Line3D", "Arc3D", "Circle3D"].includes(c.type)))) continue;
+        loop_curves.forEach(curves => fixCurveOrientations(curves));
         const loop_commands = loop_curves.map(curves => flatten(curves.map(curve => curveToSvgCommand(curve))));
+        const aabb = getAABB(flatten(loop_commands), 0.1);
+        const viewbox = aabb.left + " " + aabb.top + " " + aabb.width + " " + aabb.height;
+        const strokeWidth = (aabb.width + aabb.height) / 200;
         const loop_paths = loop_commands.map(commands => commandsToPath(commands));
         const loop_path_tags = loop_paths.map(path => "<path d='" + path + "'/>");
-        const svg = "<svg version='1.1' x='0px' y='0px' viewBox='-10 -10 20 20' xmlns='http://www.w3.org/2000/svg'>" +
-                        "<style>path{stroke:black; stroke-width: 0.1; fill: transparent}</style>" +
+        const svg = "<svg version='1.1' x='0px' y='0px' viewBox='" + viewbox + "' xmlns='http://www.w3.org/2000/svg'>" +
+                        "<style>path{stroke:red; stroke-width: " + strokeWidth + "; fill: transparent}</style>" +
                         loop_path_tags.join("\n") +
                     "</svg>";
         const browserProofSvg = browserProveSvgXml(svg);
-        svgs.push(browserProofSvg);
+        svgs.set(sketch_name, browserProofSvg);
     }
-    for(const [i, svg] of svgs.entries()) {
-        console.log("writing " + i + "/" + svgs.length);
-        await fs.writeFile("./output/" + i + ".svg", svg);
+    i=0;
+    for(const [sketch_name, svg] of svgs.entries()) {
+        i++;
+        console.log("writing " + i + "/" + svgs.size);
+        await fs.writeFile("./output/" + sketch_name + ".svg", svg);
     }
+}
+
+function getAABB(commands: (ArcCommand | LineCommand | ArcCommandEndPointRep)[], dilate = 0.0): { left: number, top: number, width: number, height: number} {
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for(const command of commands) {
+        if(isLine(command) || isArcEndPointRep(command)) {
+            left = Math.min(left, command.x0);
+            right = Math.max(right, command.x0);
+            left = Math.min(left, command.x);
+            right = Math.max(right, command.x);
+            top = Math.min(top, command.y0);
+            bottom = Math.max(bottom, command.y0);
+            top = Math.min(top, command.y);
+            bottom = Math.max(bottom, command.y);
+        }
+        if(isArc(command)) {
+            const l = command.x - command.r;
+            const r = command.x + command.r;
+            const t = command.y - command.r;
+            const b = command.y + command.r;
+            left = Math.min(left, l);
+            right = Math.max(right, r);
+            top = Math.min(top, t);
+            bottom = Math.max(bottom, b);
+        }
+    }
+    let width = right - left;
+    let height = bottom - top;
+    const absoluteDilate = dilate * (width + height) / 2;
+    left -= absoluteDilate;
+    top -= absoluteDilate;
+    width += absoluteDilate * 2;
+    height += absoluteDilate * 2;
+    return {left, top, width, height};
 }
 
 function browserProveSvgXml(xml: string): string {
@@ -157,7 +223,31 @@ function browserProveSvgXml(xml: string): string {
     return xml;
   }
 
-function curveToSvgCommand(curve: Curve): (LineCommand | ArcCommand)[] {
+function fixCurveOrientations(curves: Curve[]): void {
+    for(const [i, curve] of curves.entries()) {
+        const last = curves[(i - 1 + curves.length) % curves.length] as Line3D | Arc3D;
+        if(curve && last && curve.type !== "Circle3D" && last.end_point && last.start_point) {
+            const le = new Vector3(last.end_point.x, last.end_point.y, last.end_point.z);
+            const ls = new Vector3(last.start_point.x, last.start_point.y, last.start_point.z);
+            const ce = new Vector3(curve.end_point.x, curve.end_point.y, curve.end_point.z);
+            //console.log(curve.start_point.x + " " + curve.start_point.y);
+            //console.log(curve.end_point.x + " " + curve.end_point.y);
+            //if(curve.type === "Arc3D") console.log(curve.radius);
+            if(le.distanceTo(ce) < 0.000001 || (ls.distanceTo(ce) < 0.000001 && curves.length > 2)) {
+                const temp = curve.end_point;
+                curve.end_point = curve.start_point;
+                curve.start_point = temp;
+                if(curve.type === "Arc3D") {
+                    const temp = curve.end_angle;
+                    curve.end_angle = curve.start_angle;
+                    curve.start_angle = temp;
+                }
+            }
+        }
+    }
+}
+
+function curveToSvgCommand(curve: Curve): (LineCommand | ArcCommandEndPointRep | ArcCommand)[] {
     if(curve.type === "Line3D") {
         return [{
             x0: curve.start_point.x,
@@ -168,11 +258,15 @@ function curveToSvgCommand(curve: Curve): (LineCommand | ArcCommand)[] {
     }
     if(curve.type === "Arc3D") {
         return [{
-            x: curve.center_point.x,
-            y: curve.center_point.y,
-            r: curve.radius,
-            s: curve.start_angle,
-            e: curve.end_angle,
+            x0: curve.start_point.x,
+            y0: curve.start_point.y,
+            x: curve.end_point.x,
+            y: curve.end_point.y,
+            largeArc: Math.abs(curve.end_angle - curve.start_angle) > Math.PI ? 1 : 0,
+            rx: curve.radius,
+            ry: curve.radius,
+            xAxisRotation: 0,
+            sweep: curve.end_angle - curve.start_angle > 0 ? 1 : 0,
         }]
     }
     if(curve.type === "Circle3D") {
@@ -201,12 +295,15 @@ function commandsToPath(data: (ArcCommand | ArcCommandEndPointRep | LineCommand)
     let result = "";
     const firstCommand = _ensureEndPointRep(data[0]);
     result += "M" + firstCommand.x0 + "," + firstCommand.y0 + ",";
+    //console.log("yes man");
     data.forEach(cmd => {
         const eCmd = _ensureEndPointRep(cmd);
         if(isLine(eCmd)) {
+            //console.log(eCmd.x + " " + eCmd.y);
             result += "L" + eCmd.x + "," + eCmd.y + ",";
         } else {
             const aCmd = eCmd as ArcCommandEndPointRep;
+            //console.log(aCmd.x + " " + aCmd.y + " " + aCmd.rx + "," + aCmd.ry + "," + aCmd.xAxisRotation + "," + aCmd.largeArc + "," + aCmd.sweep);
             result += "A" + aCmd.rx + "," + aCmd.ry + "," + aCmd.xAxisRotation + "," + aCmd.largeArc + "," + aCmd.sweep + "," + aCmd.x + "," + aCmd.y + ",";
         }
     });
@@ -220,6 +317,18 @@ function isLine(obj: ArcCommand | LineCommand | ArcCommandEndPointRep): obj is L
 
 function isArc(obj: ArcCommand | LineCommand | ArcCommandEndPointRep): obj is ArcCommand {
     return 'x' in obj && 'y' in obj && 'r' in obj && 's' in obj && 'e' in obj;
+}
+
+function isArcEndPointRep(obj: ArcCommand | LineCommand | ArcCommandEndPointRep): obj is ArcCommandEndPointRep {
+    return 'x' in obj && 
+        'y' in obj && 
+        'x0' in obj && 
+        'y0' in obj && 
+        'rx' in obj && 
+        'ry' in obj && 
+        'largeArc' in obj &&
+        'sweep' in obj &&
+        'xAxisRotation' in obj;
 }
 
 function _ensureEndPointRep(cmd: ArcCommand | ArcCommandEndPointRep | LineCommand): ArcCommandEndPointRep | LineCommand {
