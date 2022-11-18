@@ -1,0 +1,27 @@
+{
+  "name": "f3g_convert_to_svg",
+  "version": "1.0.0",
+  "description": "f3g_convert_to_svg",
+  "main": "convertToSvg.ts",
+  "dependencies": {
+    "@types/lodash": "^4.14.189",
+    "@types/node": "^18.11.9",
+    "lodash": "^4.17.21",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conradlempert/f3g_convert_to_svg.git"
+  },
+  "author": "conrad lempert",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/conradlempert/f3g_convert_to_svg/issues"
+  },
+  "homepage": "https://github.com/conradlempert/f3g_convert_to_svg#readme"
+}
