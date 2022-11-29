@@ -294,17 +294,14 @@ function curveToSvgCommand(curve: Curve): (LineCommand | ArcCommandEndPointRep |
 function commandsToPath(data: (ArcCommand | ArcCommandEndPointRep | LineCommand)[]): string {
     let result = "";
     const firstCommand = _ensureEndPointRep(data[0]);
-    result += "M" + firstCommand.x0 + "," + firstCommand.y0 + ",";
-    //console.log("yes man");
+    result += "M" + firstCommand.x0 + "," + firstCommand.y0 + " ";
     data.forEach(cmd => {
         const eCmd = _ensureEndPointRep(cmd);
         if(isLine(eCmd)) {
-            //console.log(eCmd.x + " " + eCmd.y);
-            result += "L" + eCmd.x + "," + eCmd.y + ",";
+            result += "L" + eCmd.x + "," + eCmd.y + " ";
         } else {
             const aCmd = eCmd as ArcCommandEndPointRep;
-            //console.log(aCmd.x + " " + aCmd.y + " " + aCmd.rx + "," + aCmd.ry + "," + aCmd.xAxisRotation + "," + aCmd.largeArc + "," + aCmd.sweep);
-            result += "A" + aCmd.rx + "," + aCmd.ry + "," + aCmd.xAxisRotation + "," + aCmd.largeArc + "," + aCmd.sweep + "," + aCmd.x + "," + aCmd.y + ",";
+            result += "A" + aCmd.rx + "," + aCmd.ry + "," + aCmd.xAxisRotation + "," + aCmd.largeArc + "," + aCmd.sweep + "," + aCmd.x + "," + aCmd.y + " ";
         }
     });
     result += "Z";
