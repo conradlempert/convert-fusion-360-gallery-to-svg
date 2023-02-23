@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import {flatten} from "lodash";
+import {countBy, flatten} from "lodash";
 import {Vector3} from "three";
 
 const filter = "";
@@ -132,7 +132,28 @@ const readDirectory = async (dir: string) => {
   return contents;
 };
 
+function runNameStats(names: string[]) {
+    const words = flatten(names.map(n => n.split(" "))).map(w => w.toLowerCase());
+    const occurences = new Map(Object.entries(countBy(words)));
+    const ent = Array.from(occurences.entries());
+    
+    const ws = ent.filter((w) => isValidWord(w[0]) && w[1] >= 10);
+    ws.sort((a, b) => b[1] - a[1]);
+    return ws;
+}
+
+function isValidWord(w: string): boolean {
+    const regex = new RegExp('^[a-zA-Z]+$');
+    return w.match(regex) !== null && !['untitled', 'x', 'for'].includes(w);
+}
+
 async function run() {
+
+
+    await fs.rm("./output", {force: true, recursive: true})
+
+    await fs.mkdir("./output");
+
     console.log("READING FILES");
     const contents = await readDirectory("./r1.0.1/reconstruction"); 
     //console.log(contents.length);
@@ -141,41 +162,67 @@ async function run() {
     //console.log(jsons[0]);
     console.log("LOADING SKETCHES");
     const sketches = new Map<string, Sketch>();
+    const nameGroups = new Map<string, Sketch[]>();
+    const names: string[] = [];
+    for(const json of jsons) {
+        names.push(json.metadata.component_name);
+    }
+    const nameStats = runNameStats(names);
     for(const json of jsons) {
         const jsonSketches = Object.values(json.entities).filter(e => e.type === "Sketch" && e.profiles);
         for(const [i, sketch] of jsonSketches.entries()) {
-            sketches.set(json.metadata.parent_project + "_" + json.metadata.component_index + "_" + i, sketch);
+            sketches.set(json.metadata.parent_project + "_" + json.metadata.component_index + "_" + json.metadata.component_name.replace("/", "") + "_" + i, sketch);
+            const sketchWords = json.metadata.component_name.split(" ").filter(w => isValidWord(w) && nameStats.some(e => e[0] === w));
+            sketchWords.forEach(w => {
+                if(nameGroups.has(w)) {
+                    nameGroups.get(w)?.push(sketch);
+                } else {
+                    nameGroups.set(w, [sketch]);
+                }
+            })
         }
     }
+    
+    console.log(nameStats);
     const svgs = new Map<string, string>();
-    let i = 0;
-    for(const [sketch_name, sketch] of sketches.entries()) {
-        i++;
-        console.log("processing " + i + "/" + sketches.size);
-        const profiles = Object.values(sketch.profiles);
-        const loops = flatten(profiles.map(p => p.loops));
-        const loop_curves = loops.map(loop => loop.profile_curves);
-        if(loop_curves.some(curves => curves.some(c => !["Line3D", "Arc3D", "Circle3D"].includes(c.type)))) continue;
-        loop_curves.forEach(curves => fixCurveOrientations(curves));
-        const loop_commands = loop_curves.map(curves => flatten(curves.map(curve => curveToSvgCommand(curve))));
-        const aabb = getAABB(flatten(loop_commands), 0.1);
-        const viewbox = aabb.left + " " + aabb.top + " " + aabb.width + " " + aabb.height;
-        const strokeWidth = (aabb.width + aabb.height) / 200;
-        const loop_paths = loop_commands.map(commands => commandsToPath(commands));
-        const loop_path_tags = loop_paths.map(path => "<path d='" + path + "'/>");
-        const svg = "<svg version='1.1' x='0px' y='0px' viewBox='" + viewbox + "' xmlns='http://www.w3.org/2000/svg'>" +
-                        "<style>path{stroke:red; stroke-width: " + strokeWidth + "; fill: transparent}</style>" +
-                        loop_path_tags.join("\n") +
-                    "</svg>";
-        const browserProofSvg = browserProveSvgXml(svg);
-        svgs.set(sketch_name, browserProofSvg);
+
+    await fs.writeFile("./names.txt", nameStats.map(e => e[0] + " " + e[1]).join("\n"));
+    for(const [word, wordSketches] of Array.from(nameGroups.entries())) {
+        console.log(word);
+        let i = 0;
+        for(const sketch of wordSketches) {
+            const sketch_name = (Array.from(sketches.entries()).find(s => s[1] === sketch) as [string, Sketch])[0];
+            i++;
+            console.log("processing " + i + "/" + wordSketches.length);
+            const profiles = Object.values(sketch.profiles);
+            const loops = flatten(profiles.map(p => p.loops));
+            const loop_curves = loops.map(loop => loop.profile_curves);
+            if(loop_curves.some(curves => curves.some(c => !["Line3D", "Arc3D", "Circle3D"].includes(c.type)))) continue;
+            loop_curves.forEach(curves => fixCurveOrientations(curves));
+            const loop_commands = loop_curves.map(curves => flatten(curves.map(curve => curveToSvgCommand(curve))));
+            const aabb = getAABB(flatten(loop_commands), 0.1);
+            const viewbox = aabb.left + " " + aabb.top + " " + aabb.width + " " + aabb.height;
+            const strokeWidth = (aabb.width + aabb.height) / 200;
+            const loop_paths = loop_commands.map(commands => commandsToPath(commands));
+            const loop_path_tags = loop_paths.map(path => "<path d='" + path + "'/>");
+            const svg = "<svg version='1.1' x='0px' y='0px' viewBox='" + viewbox + "' xmlns='http://www.w3.org/2000/svg'>" +
+                            "<style>path{stroke:red; stroke-width: " + strokeWidth + "; fill: transparent}</style>" +
+                            loop_path_tags.join("\n") +
+                        "</svg>";
+            const browserProofSvg = browserProveSvgXml(svg);
+            svgs.set(sketch_name, browserProofSvg);   
+        }
+        i=0;
+        await fs.mkdir("./output/" + word);
+        for(const [sketch_name, svg] of svgs.entries()) {
+            i++;
+            console.log("writing " + i + "/" + svgs.size);
+            await fs.writeFile("./output/" + word + "/" + sketch_name + ".svg", svg);
+        }
+        svgs.clear();
     }
-    i=0;
-    for(const [sketch_name, svg] of svgs.entries()) {
-        i++;
-        console.log("writing " + i + "/" + svgs.size);
-        await fs.writeFile("./output/" + sketch_name + ".svg", svg);
-    }
+    
+    
 }
 
 function getAABB(commands: (ArcCommand | LineCommand | ArcCommandEndPointRep)[], dilate = 0.0): { left: number, top: number, width: number, height: number} {
