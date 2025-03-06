@@ -1,5 +1,11 @@
 # convert-fusion-360-gallery-to-svg
 
+## Download the SVGs
+
+If you simply want to download the SVGs, follow this link: [output.zip](https://github.com/conradlempert/convert-fusion-360-gallery-to-svg/blob/master/output.zip)
+
+## General info
+
 This is a tool for converting data from the [Fusion 360 Gallery reconstruction dataset](https://github.com/AutodeskAILab/Fusion360GalleryDataset/blob/master/docs/reconstruction.md) to SVG.
 
 ## How to use
