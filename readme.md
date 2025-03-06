@@ -4,13 +4,15 @@ This is a tool for converting data from the [Fusion 360 Gallery reconstruction d
 
 ## How to use
 
-1. Download the dataset here: https://fusion-360-gallery-dataset.s3.us-west-2.amazonaws.com/reconstruction/r1.0.1/r1.0.1.zip
+1. Clone this repository
+2. Download the dataset here: https://fusion-360-gallery-dataset.s3.us-west-2.amazonaws.com/reconstruction/r1.0.1/r1.0.1.zip
+3. Extract the zip
 
-2. Put the r1.0.1 in the root folder of this repo like this:
+4. Put the r1.0.1 in the root folder of this repository like this:
 
 <img src="https://github.com/user-attachments/assets/3e6f5188-e7eb-4c23-a0a8-e3a85c79c4d4" width="200"/>
 
-3. To start the conversion, run this in the root folder of the repo:
+5. To start the conversion, run this in the root folder of the repository:
 
 ```
 npm i
