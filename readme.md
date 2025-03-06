@@ -2,7 +2,9 @@
 
 ## Download the SVGs
 
-If you simply want to download the SVGs, follow this link: [output.zip](https://github.com/conradlempert/convert-fusion-360-gallery-to-svg/blob/master/output.zip)
+If you simply want to download the SVGs, **follow this link: [output.zip](https://github.com/conradlempert/convert-fusion-360-gallery-to-svg/blob/master/output.zip)** (and then press download on the top right)
+
+Note: According to the license of the original dataset, you are only allowed to use this for non-commercial research purposes. [More details](https://github.com/AutodeskAILab/Fusion360GalleryDataset/blob/master/LICENSE.md)
 
 ## General info
 
