@@ -30,3 +30,5 @@ It also groups the data by keywords.
 npm i
 npx ts-node convertToSvg.ts
 ```
+
+6. The result is in the `output` folder.
