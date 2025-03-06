@@ -8,9 +8,13 @@ Note: According to the license of the original dataset, you are only allowed to 
 
 ## General info
 
+![Screenshot 2025-03-06 at 21 34 36](https://github.com/user-attachments/assets/a4731293-b962-4c5d-9e52-82ec9e20c1b7)
+
 This is a tool for converting data from the [Fusion 360 Gallery reconstruction dataset](https://github.com/AutodeskAILab/Fusion360GalleryDataset/blob/master/docs/reconstruction.md) to SVG.
 
-## How to use
+It also groups the data by keywords.
+
+## How to convert to SVGs yourself
 
 1. Clone this repository
 2. Download the dataset here: https://fusion-360-gallery-dataset.s3.us-west-2.amazonaws.com/reconstruction/r1.0.1/r1.0.1.zip
